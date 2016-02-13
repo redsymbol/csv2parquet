@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+
+import sys
+import argparse
+import csv
+import tempfile
+import atexit
+import shutil
+import os
+import subprocess
+
+HELP='''
+csv_input is a CSV file, whose first line defines the column names.
+parquet_output is the Parquet output (i.e., directory in which one or more
+    Parquet files are written.)
+
+For tab-separated values, pass --delimiter='\t', or other value as appropriate.
+'''.strip()
+
+# True iff we are to preserve temporary files.
+# Globally set to true in debug mode.
+global preserve
+preserve = False
+
+parser = argparse.ArgumentParser()
+parser.add_argument('csv_input',
+                    help='Path to input CSV file')
+parser.add_argument('parquet_output',
+                    help='Path to Parquet output')
+parser.add_argument('--delimiter', default=',',
+                    help='Input field delimiter. Set to "\t" for tab-separated values, for example')
+parser.add_argument('--debug', default=False, action='store_true',
+                    help='Preserve intermediate files and logs')
+
+class CsvSource:
+    def __init__(self, path, delimiter):
+        self.path = path
+        self.delimiter = delimiter
+        self._headers = None
+    @property
+    def headers(self):
+        if self._headers is None:
+            with open(self.path, newline='') as handle:
+                csv_data = csv.reader(handle, delimiter=self.delimiter)
+                self._headers = next(csv_data)
+        return self._headers
+
+class TempLocation:
+    _tempdir = None
+    def __init__(self):
+        drive, path = os.path.splitdrive(self.tempdir)
+        assert drive == '', 'Windows support not provided yet'
+        assert path.startswith('/tmp/'), self.tempdir
+        self.dfs_tmp_base = path[len('/tmp'):]
+    def dfs_tmp_path(self, path):
+        return os.path.join(self.dfs_tmp_base, path)
+    def full_path(self, path):
+        return os.path.join(self.tempdir, path)
+    @property
+    def tempdir(self):
+        if self._tempdir is None:
+            self._tempdir = tempfile.mkdtemp(prefix='/tmp/')
+            if preserve:
+                print('Preserving logs and intermediate files: ' + self._tempdir)
+            else:
+                atexit.register(shutil.rmtree, self._tempdir)
+        return self._tempdir
+
+class DrillScript:
+    def __init__(self, csv_source, parquet_output):
+        self.csv_source = csv_source
+        self.parquet_output = parquet_output
+        self.temploc = TempLocation()
+    def render(self):
+        script = '''alter session set `store.format`='parquet';
+CREATE TABLE dfs.tmp.`{}` AS
+SELECT
+'''.format(self.temploc.dfs_tmp_path('parquet_tmp_output'))
+        column_lines = ['columns[{}] as `{}`'.format(n, header)
+                        for n, header in enumerate(self.csv_source.headers, 1)]
+        script += ',\n'.join(column_lines) + '\n'
+        script += 'FROM dfs.`{}`'.format(self.csv_source.path)
+        return script
+    def run(self):
+        # execute drill script
+        script_path = os.path.join(self.temploc.tempdir, 'script')
+        script_stdout = os.path.join(self.temploc.tempdir, 'script_stdout')
+        script_stderr = os.path.join(self.temploc.tempdir, 'script_stderr')
+        cmd = [
+            'drill-embedded',
+            '--run={}'.format(script_path),
+        ]
+        with open(script_path, 'w') as handle:
+            handle.write(self.render())
+        with open(script_stdout, 'w') as stdout, open(script_stderr, 'w') as stderr:
+            proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
+            proc.wait()
+        assert proc.returncode == 0, proc.returncode
+        # publish resulting output parquet file
+        os.rename(self.temploc.full_path('parquet_tmp_output'), self.parquet_output)
+        
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    if args.debug:
+        preserve = True
+    # Quick pre-check whether destination exists. There's a race
+    # condition because it can still be created between now and when
+    # we eventually try to write it, but this will catch the common case.
+    if os.path.exists(args.parquet_output):
+        sys.stderr.write('Output location "{}" already exists. Rename or delete before running again.\n'.format(args.parquet_output))
+        sys.exit(1)
+    csv_source = CsvSource(args.csv_input, args.delimiter)
+    drill_script = DrillScript(csv_source, args.parquet_output)
+    drill_script.run()
