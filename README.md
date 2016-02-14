@@ -28,7 +28,9 @@ In terms of priority:
  * Running csv2parquet on Windows.
  * Porting to work on versions of Python earlier than 3.5.
 
-# License
+# About
 
-This software is in the public domain. 
+Written by Aaron Maxwell - amax at redsymbol dot net
+
+Licensed under GPLv3.
 
