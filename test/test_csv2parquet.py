@@ -8,6 +8,19 @@ THIS_DIR = os.path.dirname(__file__)
 TEST_CSV = os.path.join(THIS_DIR, 'test-simple.csv')
 TEST_CSV_MAP = os.path.join(THIS_DIR, 'test-header-mapping.csv')
 
+class TestUtil(unittest.TestCase):
+    def test_list2dict(self):
+        from csv2parquet import list2dict
+        with self.assertRaises(ValueError):
+            list2dict(["foo"])
+        with self.assertRaises(ValueError):
+            list2dict(["foo", "bar", "baz"])
+        self.assertEqual({}, list2dict([]))
+        self.assertEqual({}, list2dict(None))
+        self.assertEqual({"a":"b"}, list2dict(["a", "b"]))
+        self.assertEqual({"a":"b", "x":"y"}, list2dict(["a", "b", "x", "y"]))
+        self.assertEqual({"a":"b", "x":"y"}, list2dict(["x", "y", "a", "b"]))
+
 class TestCsvSource(unittest.TestCase):
     def test_real_path_to_prevent_drill_script_errors(self):
         # Specifying a CSV file path of something like "../something.csv" will confuse Drill.
