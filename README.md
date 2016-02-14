@@ -2,7 +2,7 @@
 
 This simple tool creates Parquet files from CSV input. It requires [Apache Drill](https://drill.apache.org) to be installed.
 
-Much credit for this goes to Tugdual "Tug" Grall"; `csv2parquet`
+Much credit for this goes to Tugdual "Tug" Grall; `csv2parquet`
 essentially automates the process he documents in [Convert a CSV File
 to Apache Parquet With
 Drill](http://tgrall.github.io/blog/2015/08/17/convert-csv-file-to-apache-parquet-dot-dot-dot-with-drill/).
@@ -34,8 +34,8 @@ columns under "Primary Column" and "Special Name", respectively.
 
 (A CSV column name may not be valid as a Parquet column name - for
 example, a header name with a period, like "Min. Investment". In this
-situation, you *must* use `--column-names` to provide a valid column
-name, or edit the source CSV file.)
+situation, you *must* use `--column-names` to provide a column name
+that Parquet can accept, or edit the source CSV file.)
 
 # Installation
 
