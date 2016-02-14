@@ -24,7 +24,11 @@ comments, pull requests, etc. to help add Windows support.
 
 In terms of priority:
 
- * Adding certain important features, like mapping CSV headers to custom Parquet column names; type casting; delimiters other than comma, etc.
+ * Adding certain important features, including:
+   - validation of header names
+   - mapping CSV headers to custom Parquet column names
+   - type casting
+   - delimiters other than comma
  * Running csv2parquet on Windows.
  * Porting to work on versions of Python earlier than 3.5.
 
