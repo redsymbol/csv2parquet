@@ -9,6 +9,7 @@ import string
 import subprocess
 import sys
 import tempfile
+from collections import OrderedDict
 
 HELP='''
 csv_input is a CSV file, whose first line defines the column names.
@@ -32,6 +33,8 @@ parser.add_argument('parquet_output',
                     help='Path to Parquet output')
 parser.add_argument('--debug', default=False, action='store_true',
                     help='Preserve intermediate files and logs')
+parser.add_argument('--mapping', nargs='*',
+                    help='Map CSV header names to Parquet column names (see help)')
 
 DRILL_OVERRIDE_TEMPLATE = '''
 drill.exec: {
@@ -62,10 +65,22 @@ drill.exec: {
 }
 '''
 
+class CsvSourceError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+def is_valid_parquet_column_name(val):
+    return '.' not in val
+
 class CsvSource:
-    def __init__(self, path: str):
-        self.path = path
+    def __init__(self, path: str, name_map: dict = None):
+        if name_map is None:
+            name_map = {}
+        self.path = os.path.realpath(path)
+        self.name_map = name_map
         self._headers = None
+        self._header_map = None
     @property
     def headers(self):
         if self._headers is None:
@@ -73,6 +88,19 @@ class CsvSource:
                 csv_data = csv.reader(handle)
                 self._headers = next(csv_data)
         return self._headers
+    @property
+    def header_map(self):
+        if self._header_map is None:
+            self._header_map = OrderedDict()
+            invalid_names = []
+            for csv_name in self.headers:
+                new_name = self.name_map.get(csv_name, csv_name)
+                if not is_valid_parquet_column_name(new_name):
+                    invalid_names.append(new_name)
+                self._header_map[csv_name] = new_name
+            if len(invalid_names) > 0:
+                raise CsvSourceError(invalid_names)
+        return self._header_map
 
 class TempLocation:
     _tempdir = None
@@ -157,23 +185,30 @@ class DrillInstallation:
 
     def build_script(self, csv_source: CsvSource, parquet_output: str):
         return DrillScript(self, csv_source, parquet_output)
-        
+
+def render_drill_script(headers, parquet_output, csv_input):
+    script = '''alter session set `store.format`='parquet';
+CREATE TABLE dfs.tmp.`{}` AS
+SELECT
+'''.format(parquet_output)
+    column_lines = ['columns[{}] as `{}`'.format(n, header)
+                    for n, header in enumerate(headers)]
+    script += ',\n'.join(column_lines) + '\n'
+    script += 'FROM dfs.`{}`\n'.format(csv_input)
+    script += 'OFFSET 1\n'
+    return script
+    
 class DrillScript:
     def __init__(self, drill: DrillInstallation, csv_source: CsvSource, parquet_output: str):
         self.drill = drill
         self.csv_source = csv_source
         self.parquet_output = parquet_output
     def render(self):
-        script = '''alter session set `store.format`='parquet';
-CREATE TABLE dfs.tmp.`{}` AS
-SELECT
-'''.format(self.drill.location.dfs_tmp_path('parquet_tmp_output'))
-        column_lines = ['columns[{}] as `{}`'.format(n, header)
-                        for n, header in enumerate(self.csv_source.headers)]
-        script += ',\n'.join(column_lines) + '\n'
-        script += 'FROM dfs.`{}`\n'.format(self.csv_source.path)
-        script += 'OFFSET 1\n'
-        return script
+        return render_drill_script(
+            self.csv_source.headers,
+            self.drill.location.dfs_tmp_path('parquet_tmp_output'),
+            self.csv_source.path,
+        )
     def run(self):
         # execute drill script
         script_path = os.path.join(self.drill.location.tempdir, 'script')
