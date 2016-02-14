@@ -28,35 +28,6 @@ csv2parquet data.csv data.parquet --column-names "CSV Column Name" "Parquet Colu
 global preserve
 preserve = False
 
-def list2dict(items):
-    '''convert [a, b, c, d] to {a:b, c:d}'''
-    if items is None:
-        return {}
-    if len(items) % 2 != 0:
-        raise ValueError
-    return dict( (items[n], items[n+1])
-                 for n in range(0, len(items)-1, 2) )    
-def get_args():
-    parser = argparse.ArgumentParser(
-            description='',
-            epilog=HELP,
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument('csv_input',
-                        help='Path to input CSV file')
-    parser.add_argument('parquet_output',
-                        help='Path to Parquet output')
-    parser.add_argument('--debug', default=False, action='store_true',
-                        help='Preserve intermediate files and logs')
-    parser.add_argument('--column-names', nargs='*',
-                        help='Map CSV header names to Parquet column names. See documentation')
-    args = parser.parse_args()
-    try:
-        args.column_names = list2dict(args.column_names)
-    except ValueError:
-        parser.error('--column-names requires an even number of arguments, as key-value pairs')
-    return args
-
 DRILL_OVERRIDE_TEMPLATE = '''
 drill.exec: {
   sys.store.provider: {
@@ -86,6 +57,52 @@ drill.exec: {
 }
 '''
 
+# helper functions
+def list2dict(items):
+    '''convert [a, b, c, d] to {a:b, c:d}'''
+    if items is None:
+        return {}
+    if len(items) % 2 != 0:
+        raise ValueError
+    return dict( (items[n], items[n+1])
+                 for n in range(0, len(items)-1, 2) )    
+def get_args():
+    parser = argparse.ArgumentParser(
+            description='',
+            epilog=HELP,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('csv_input',
+                        help='Path to input CSV file')
+    parser.add_argument('parquet_output',
+                        help='Path to Parquet output')
+    parser.add_argument('--debug', default=False, action='store_true',
+                        help='Preserve intermediate files and logs')
+    parser.add_argument('--column-names', nargs='*',
+                        help='Map CSV header names to Parquet column names. See documentation')
+    args = parser.parse_args()
+    try:
+        args.column_names = list2dict(args.column_names)
+    except ValueError:
+        parser.error('--column-names requires an even number of arguments, as key-value pairs')
+    return args
+
+def is_valid_parquet_column_name(val):
+    return '.' not in val
+
+def render_drill_script(headers, parquet_output, csv_input):
+    script = '''alter session set `store.format`='parquet';
+CREATE TABLE dfs.tmp.`{}` AS
+SELECT
+'''.format(parquet_output)
+    column_lines = ['columns[{}] as `{}`'.format(n, header)
+                    for n, header in enumerate(headers)]
+    script += ',\n'.join(column_lines) + '\n'
+    script += 'FROM dfs.`{}`\n'.format(csv_input)
+    script += 'OFFSET 1\n'
+    return script
+    
+# exceptions
 class CsvSourceError(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -94,9 +111,7 @@ class CsvSourceError(Exception):
 class InvalidColumnNames(CsvSourceError):
     pass
 
-def is_valid_parquet_column_name(val):
-    return '.' not in val
-
+# classes
 class CsvSource:
     def __init__(self, path: str, name_map: dict = None):
         if name_map is None:
@@ -210,18 +225,6 @@ class DrillInstallation:
     def build_script(self, csv_source: CsvSource, parquet_output: str):
         return DrillScript(self, csv_source, parquet_output)
 
-def render_drill_script(headers, parquet_output, csv_input):
-    script = '''alter session set `store.format`='parquet';
-CREATE TABLE dfs.tmp.`{}` AS
-SELECT
-'''.format(parquet_output)
-    column_lines = ['columns[{}] as `{}`'.format(n, header)
-                    for n, header in enumerate(headers)]
-    script += ',\n'.join(column_lines) + '\n'
-    script += 'FROM dfs.`{}`\n'.format(csv_input)
-    script += 'OFFSET 1\n'
-    return script
-    
 class DrillScript:
     def __init__(self, drill: DrillInstallation, csv_source: CsvSource, parquet_output: str):
         self.drill = drill
