@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-import sys
 import argparse
-import csv
-import tempfile
 import atexit
-import shutil
+import csv
 import os
+import shutil
+import string
 import subprocess
+import sys
+import tempfile
 
 HELP='''
 csv_input is a CSV file, whose first line defines the column names.
@@ -66,16 +67,107 @@ class TempLocation:
                 atexit.register(shutil.rmtree, self._tempdir)
         return self._tempdir
 
+DRILL_OVERRIDE_TEMPLATE = '''
+drill.exec: {
+  sys.store.provider: {
+    # The following section is only required by LocalPStoreProvider
+    local: {
+      path: "${local_base}",
+      write: true
+    }
+  },
+  tmp: {
+    directories: ["${local_base}"],
+    filesystem: "drill-local:///"
+  },
+  sort: {
+    purge.threshold : 100,
+    external: {
+      batch.size : 4000,
+      spill: {
+        batch.size : 4000,
+        group.size : 100,
+        threshold : 200,
+        directories : [ "${local_base}/spill" ],
+        fs : "file:///"
+      }
+    }
+  },
+}
+'''
+
+class DrillInstallation:
+    '''
+    Even in embedded mode, Drill runs in a stateful fashion, storing
+    its state in (by default) /tmp/drill. This poses a few problems
+    for running csv2parquet in ways that are (a) robust, and (b)
+    certain not to affect any other Drill users, human or machine.
+
+    This would be an easy problem to solve if I could create a custom
+    conf/drill-overrides.conf, and pass it to drill-embedded as a
+    command line option. However, as of Drill 1.4, the only way to do
+    such customization is to modify the actual drill-overrides.conf
+    file itself, before starting drill-embedded.
+
+    This class gets around this through an admittedly unorthodox hack:
+    creating a whole parallel Drill installation under a temporary
+    directory, with a customized conf/ directory, but reusing (via
+    symlinks) everything else in the main installation. This lets us
+    safely construct our own drill configuration, using its own
+    separate equivalent of /tmp/drill (etc.), and which is all cleaned
+    up after the script exits.
+
+    (Feature request to anyone on the Drill team reading this: Please
+    give drill-embedded a --with-override-file option!)
+
+ '''
+    def __init__(self, reference_executable=None):
+        self.location = TempLocation()
+        if reference_executable is None:
+            reference_executable = shutil.which('drill-embedded')
+        assert reference_executable is not None
+        self.reference_executable = reference_executable
+        self.reference_base, self.bindir = os.path.split(os.path.dirname(reference_executable))
+        self.install()
+    @property
+    def base(self):
+        return os.path.join(self.location.tempdir, 'drill')
+    @property
+    def local_base(self):
+        return os.path.join(self.location.tempdir, 'drill-local-base')
+    @property
+    def executable(self):
+        return os.path.join(self.base, self.bindir, 'drill-embedded')
+    def install(self):
+        # create required subdirs
+        for dirname in (self.base, self.local_base):
+            os.makedirs(dirname)
+        # link to reference
+        for item in os.scandir(self.reference_base):
+            if item.name == 'conf':
+                assert item.is_dir()
+                continue
+            os.link(item.path, os.path.join(self.base, item.name))
+        # install config
+        conf_dir = os.path.join(self.base, 'conf')
+        os.makedirs(conf_dir)
+        with open(os.path.join(conf_dir, 'drill-override.conf'), 'w') as handle:
+            handle.write(string.Template(DRILL_OVERRIDE_TEMPLATE).substitute(
+                local_base=self.local_base))
+
+    def build_script(self, csv_source, parquet_output):
+        return DrillScript(self, csv_source, parquet_output)
+        
 class DrillScript:
-    def __init__(self, csv_source, parquet_output):
+    def __init__(self, drill: DrillInstallation, csv_source: CsvSource, parquet_output: str):
+        self.drill = drill
         self.csv_source = csv_source
         self.parquet_output = parquet_output
-        self.temploc = TempLocation()
     def render(self):
         script = '''alter session set `store.format`='parquet';
 CREATE TABLE dfs.tmp.`{}` AS
 SELECT
-'''.format(self.temploc.dfs_tmp_path('parquet_tmp_output'))
+'''.format(self.drill.location.dfs_tmp_path('parquet_tmp_output'))
         column_lines = ['columns[{}] as `{}`'.format(n, header)
                         for n, header in enumerate(self.csv_source.headers, 1)]
         script += ',\n'.join(column_lines) + '\n'
@@ -83,11 +175,11 @@ SELECT
         return script
     def run(self):
         # execute drill script
-        script_path = os.path.join(self.temploc.tempdir, 'script')
-        script_stdout = os.path.join(self.temploc.tempdir, 'script_stdout')
-        script_stderr = os.path.join(self.temploc.tempdir, 'script_stderr')
+        script_path = os.path.join(self.drill.location.tempdir, 'script')
+        script_stdout = os.path.join(self.drill.location.tempdir, 'script_stdout')
+        script_stderr = os.path.join(self.drill.location.tempdir, 'script_stderr')
         cmd = [
-            'drill-embedded',
+            self.drill.executable,
             '--run={}'.format(script_path),
         ]
         with open(script_path, 'w') as handle:
@@ -97,7 +189,7 @@ SELECT
             proc.wait()
         assert proc.returncode == 0, proc.returncode
         # publish resulting output parquet file
-        os.rename(self.temploc.full_path('parquet_tmp_output'), self.parquet_output)
+        os.rename(self.drill.location.full_path('parquet_tmp_output'), self.parquet_output)
         
 
 if __name__ == "__main__":
@@ -111,5 +203,6 @@ if __name__ == "__main__":
         sys.stderr.write('Output location "{}" already exists. Rename or delete before running again.\n'.format(args.parquet_output))
         sys.exit(1)
     csv_source = CsvSource(args.csv_input, args.delimiter)
-    drill_script = DrillScript(csv_source, args.parquet_output)
+    drill = DrillInstallation()
+    drill_script = drill.build_script(csv_source, args.parquet_output)
     drill_script.run()
