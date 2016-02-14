@@ -170,7 +170,7 @@ CREATE TABLE dfs.tmp.`{}` AS
 SELECT
 '''.format(self.drill.location.dfs_tmp_path('parquet_tmp_output'))
         column_lines = ['columns[{}] as `{}`'.format(n, header)
-                        for n, header in enumerate(self.csv_source.headers, 1)]
+                        for n, header in enumerate(self.csv_source.headers)]
         script += ',\n'.join(column_lines) + '\n'
         script += 'FROM dfs.`{}`\n'.format(self.csv_source.path)
         script += 'OFFSET 1\n'
