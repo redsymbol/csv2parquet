@@ -62,7 +62,7 @@ In terms of priority:
 
 # About
 
-Written by Aaron Maxwell - amax at redsymbol dot net
+Written by [Aaron Maxwell](http://redsymbol.net). Contact him at amax@redsymbol.net.
 
 Licensed under GPLv3.
 
