@@ -12,10 +12,10 @@ import tempfile
 
 HELP='''
 csv_input is a CSV file, whose first line defines the column names.
-parquet_output is the Parquet output (i.e., directory in which one or more
-    Parquet files are written.)
+parquet_output is the Parquet output (i.e., directory in which one or
+more Parquet files are written.)
 
-For tab-separated values, pass --delimiter='\t', or other value as appropriate.
+NOTE: The --delimiter option does not currently work. Only commas are supported.
 '''.strip()
 
 # True iff we are to preserve temporary files.
@@ -23,13 +23,17 @@ For tab-separated values, pass --delimiter='\t', or other value as appropriate.
 global preserve
 preserve = False
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+        description='',
+        epilog=HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+)
 parser.add_argument('csv_input',
                     help='Path to input CSV file')
 parser.add_argument('parquet_output',
                     help='Path to Parquet output')
 parser.add_argument('--delimiter', default=',',
-                    help='Input field delimiter. Set to "\t" for tab-separated values, for example')
+                    help='(Currently not working - only "," supported) Input field delimiter. Set to "\\t" for tab-separated values, for example')
 parser.add_argument('--debug', default=False, action='store_true',
                     help='Preserve intermediate files and logs')
 
@@ -192,7 +196,6 @@ SELECT
         assert proc.returncode == 0, proc.returncode
         # publish resulting output parquet file
         os.rename(self.drill.location.full_path('parquet_tmp_output'), self.parquet_output)
-        
 
 if __name__ == "__main__":
     args = parser.parse_args()
