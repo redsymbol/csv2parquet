@@ -70,7 +70,6 @@ class InvalidColumnNames(CsvSourceError):
     pass
 
 # classes
-
 class Column:
     def __init__(self, csv, parquet, type):
         self.csv = csv
@@ -84,6 +83,30 @@ class Column:
     def line(self, index):
         if self.type is None:
             return 'columns[{}] as `{}`'.format(index, self.parquet)
+        # In Drill, if a SELECT query has both an OFFSET with a CAST,
+        # Drill will apply that cast even to columns that are
+        # skipped. For a headerless CSV file, we could just use
+        # something like:
+        #
+        #     CAST(columns[{index}] as {type}) as `{parquet_name}`
+        #
+        # But causes the entire conversion to fail, because Drill
+        # attempts to cast the header (e.g., "Price") to the type
+        # (e.g., INT), triggering a fatal error. So instead we must
+        # do:
+        #
+        #     CASE when columns[{index}]='{csv_name}' then CAST(NULL AS {type}) else ...
+        #
+        # I really don't like this, because it makes it possible for
+        # data corruption to hide. If a cell should contain a number,
+        # but instead contains a non-numeric string, that should be a
+        # loud, noisy error which is impossible to ignore. However, if
+        # that happens here, and you are so unlucky that the corrupted
+        # value happens to equal the CSV column name, then it is
+        # silently nulled out.  This is admittedly very unlikely, but
+        # that's not the same as impossible. If you are reading this
+        # and have an idea for a better solution, please contact the
+        # author (see README.md).
         return "CASE when columns[{index}]='{csv_name}' then CAST(NULL AS {type}) else CAST(columns[{index}] as {type}) end as `{parquet_name}`".format(
             index=index, type=self.type, parquet_name=self.parquet, csv_name=self.csv)
 
