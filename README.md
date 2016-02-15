@@ -1,6 +1,11 @@
 # csv2parquet: Create Parquet files from CSV
 
-This simple tool creates Parquet files from CSV input. It requires [Apache Drill](https://drill.apache.org) to be installed.
+This simple tool creates Parquet files from CSV input. It requires
+[Apache Drill](https://drill.apache.org) to be installed. As a data
+format, [Parquet](https://parquet.apache.org) offers strong advantages
+over comma-separated values for big data and cloud computing needs;
+`csv2parquet` is designed to let you experience those benefits more
+easily.
 
 Much credit for this goes to Tugdual "Tug" Grall; `csv2parquet`
 essentially automates the process he documents in [Convert a CSV File
