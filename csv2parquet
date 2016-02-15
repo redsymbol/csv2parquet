@@ -194,7 +194,7 @@ class DrillInstallation:
             if item.name == 'conf':
                 assert item.is_dir()
                 continue
-            os.link(item.path, os.path.join(self.base, item.name))
+            os.symlink(item.path, os.path.join(self.base, item.name))
         # install config
         conf_dir = os.path.join(self.base, 'conf')
         os.makedirs(conf_dir)
