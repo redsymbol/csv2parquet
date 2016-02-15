@@ -13,21 +13,25 @@ Contact" below to reach the author.
 
 # Usage
 
-```csv2parquet CSV_INPUT PARQUET_OUTPUT [--column-names ...]```
+```csv2parquet CSV_INPUT PARQUET_OUTPUT [--column-map ...] [--types ...] ```
 
 `csv_input` is a CSV file, whose first line defines the column names.
-`parquet_output` is the Parquet output (i.e., directory in which one or
-more Parquet files are written.)
+`parquet_output` is the Parquet output (i.e., directory in which one
+or more Parquet files are written.) Note that `csv2parquet` is
+currently specifically designed to work with files whose first line
+defines header/column names.
 
 ## Column Names
 
 By default, Parquet column names have the same name as the CSV header.
 You can specify a different name for each output column with the
-`--column-names` option.  When used, it must be followed by an even
-number of strings, constituting the key-value pairs:
+`--column-map` option.  When used, it must be followed by an even
+number of strings, i.e. a sequence of pairs. In each pair, the first
+string is the CSV file column name, and the second is the Parquet
+column name to use instead:
 
 ```
-csv2parquet data.csv data.parquet --column-names "First Column" "Primary Column" "Another Column" "Special Name"
+csv2parquet data.csv data.parquet --column-map "First Column" "Primary Column" "Another Column" "Special Name"
 ```
 
 In this example, two of the CSV columns are named "First Column" and
@@ -36,7 +40,7 @@ columns under "Primary Column" and "Special Name", respectively.
 
 (A perfectly good CSV column name may not be valid as a Parquet column
 name - for example, a header name with a period, like
-"Min. Investment". In this situation, you *must* use `--column-names`
+"Min. Investment". In this situation, you *must* use `--column-map`
 to provide a column name that Parquet can accept, or edit the source
 CSV file.)
 
@@ -44,8 +48,8 @@ CSV file.)
 
 By default, `csv2parquet` assumes all columns are of type string. You
 can define specific columns to be any Drill data type. You do this
-using the `--type-names` option, whose syntax is similar to
-`--column-names`. On the command line, you write `--type-names`,
+using the `--types` option, whose syntax is similar to
+`--column-map`. On the command line, you write `--types`,
 followed by an even number of strings that encode a sequence of
 pairs. In each pair, the first string matches the name of the CSV
 column. (*Not* the Parquet column name, if that is different.) The
@@ -54,19 +58,19 @@ types](https://drill.apache.org/docs/supported-data-types/), such as
 "INT", "FLOAT", "DATE", and so on. For example:
 
 ```
-csv2parquet data.csv data.parquet --type-names "First Column" "INT" "Another Column" "FLOAT"
+csv2parquet data.csv data.parquet --types "First Column" "INT" "Another Column" "FLOAT"
 ```
 
-Note you can pass both `--type-names` and `--column-names` to
+Note you can pass both `--types` and `--column-map` to
 `csv2parquet` at once:
 
     # On one long line:
-    csv2parquet data.csv data.parquet --column-names "First Column" "Primary Column" "Another Column" "Special Name" --type-names "First Column" "INT" "Another Column" "FLOAT"
+    csv2parquet data.csv data.parquet --column-map "First Column" "Primary Column" "Another Column" "Special Name" --types "First Column" "INT" "Another Column" "FLOAT"
     
     # Split across lines, for readability:
     csv2parquet data.csv data.parquet \
-        --column-names "First Column" "Primary Column" "Another Column" "Special Name" \
-        --type-names "First Column" "INT" "Another Column" "FLOAT"
+        --column-map "First Column" "Primary Column" "Another Column" "Special Name" \
+        --types "First Column" "INT" "Another Column" "FLOAT"
 
 
 ## Troubleshooting

@@ -15,13 +15,13 @@ csv_input is a CSV file, whose first line defines the column names.
 parquet_output is the Parquet output (i.e., directory in which one or
 more Parquet files are written.)
 
-When used, --column-names must be followed by an even number of
+When used, --column-map must be followed by an even number of
 strings, constituting the key-value pairs mapping CSV to Parquet
 column names:
-  csv2parquet data.csv data.parquet --column-names "CSV Column Name" "Parquet Column Name"
+  csv2parquet data.csv data.parquet --column-map "CSV Column Name" "Parquet Column Name"
 
-To provide types for columns, use --type-names:
-  csv2parquet data.csv data.parquet --type-names "CSV Column Name" "INT"
+To provide types for columns, use --types:
+  csv2parquet data.csv data.parquet --types "CSV Column Name" "INT"
 
 See documentation (README.md in the source repo) for more information.
 '''.strip()
@@ -247,19 +247,19 @@ def get_args():
                         help='Path to Parquet output')
     parser.add_argument('--debug', default=False, action='store_true',
                         help='Preserve intermediate files and logs')
-    parser.add_argument('--column-names', nargs='*',
+    parser.add_argument('--column-map', nargs='*',
                         help='Map CSV header names to Parquet column names')
-    parser.add_argument('--type-names', nargs='*',
+    parser.add_argument('--types', nargs='*',
                         help='Map CSV header names to Parquet types')
     args = parser.parse_args()
     try:
-        args.column_names = list2dict(args.column_names)
+        args.column_map = list2dict(args.column_map)
     except ValueError:
-        parser.error('--column-names requires an even number of arguments, as key-value pairs')
+        parser.error('--column-map requires an even number of arguments, as key-value pairs')
     try:
-        args.type_names = list2dict(args.type_names)
+        args.types = list2dict(args.types)
     except ValueError:
-        parser.error('--type-names requires an even number of arguments, as key-value pairs')
+        parser.error('--types requires an even number of arguments, as key-value pairs')
     return args
 
 def list2dict(items):
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     if os.path.exists(args.parquet_output):
         sys.stderr.write('Output location "{}" already exists. Rename or delete before running again.\n'.format(args.parquet_output))
         sys.exit(1)
-    csv_source = CsvSource(args.csv_input, args.column_names, args.type_names)
+    csv_source = CsvSource(args.csv_input, args.column_map, args.types)
     drill = DrillInstallation()
     drill_script = drill.build_script(csv_source, args.parquet_output)
     drill_script.run()
