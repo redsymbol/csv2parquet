@@ -3,6 +3,7 @@ import os
 from collections import OrderedDict
 
 import csv2parquet
+from csv2parquet import Columns, Column
 
 THIS_DIR = os.path.dirname(__file__)
 TEST_CSV = os.path.join(THIS_DIR, 'test-simple.csv')
@@ -51,9 +52,8 @@ class TestCsvSource(unittest.TestCase):
 
     def test_headers_map(self):
         # verify that an exception is raised if we try to create it without mapping
-        csv_src = csv2parquet.CsvSource(TEST_CSV_MAP)
-        with self.assertRaises(csv2parquet.CsvSourceError):
-            csv_src.header_map
+        with self.assertRaises(csv2parquet.InvalidColumnNames):
+            csv_src = csv2parquet.CsvSource(TEST_CSV_MAP)
         # now try again, with a mapping
         name_map = {
             'Adj. Open'   : 'Adj Open',
@@ -98,16 +98,34 @@ columns[7] as `Split Ratio`
 FROM dfs.`/path/to/input.csv`
 OFFSET 1
 '''.strip()
-        headers = [
-            'Date',
-            'Open',
-            'High',
-            'Low',
-            'Close',
-            'Volume',
-            'Ex-Dividend',
-            'Split Ratio',
+        columns = [
+            Column('When', 'Date', None),
+            Column('Open', 'Open', None),
+            Column('Day High', 'High', None),
+            Column('Day Low', 'Low', None),
+            Column('Close', 'Close', None),
+            Column('Volume', 'Volume', None),
+            Column('Ex-Dividend', 'Ex-Dividend', None),
+            Column('Split Ratio', 'Split Ratio', None),
             ]
-        actual_script = csv2parquet.render_drill_script(headers, '/path/to/parquet_output/', '/path/to/input.csv').strip()
+        actual_script = csv2parquet.render_drill_script(columns, '/path/to/parquet_output/', '/path/to/input.csv').strip()
         self.assertEqual(expected_script, actual_script)
+
+class TestColumns(unittest.TestCase):
+    def test_main(self):
+        columns = Columns([], {}, {})
+        self.assertEqual([], columns.items)
         
+        columns = csv2parquet.Columns(
+            ["abc", "xyz", "foo", "bar", "baz", ],
+            {"foo": "whee", "baz": "magic"},
+            {})
+        items = [
+            Column("abc", "abc", None),
+            Column("xyz", "xyz", None),
+            Column("foo", "whee", None),
+            Column("bar", "bar", None),
+            Column("baz", "magic", None),
+        ]
+        self.assertEqual(items, columns.items)
+        self.assertEqual(items, list(columns))
