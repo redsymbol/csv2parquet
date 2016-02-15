@@ -47,11 +47,11 @@ class TestCsvSource(unittest.TestCase):
             ]
         self.assertEqual(expected_headers, csv_src.headers)
         # CSV and Parquet column names should be the same.
-        expected_header_map = dict((header, header) for header in expected_headers)
-        self.assertEqual(expected_header_map, csv_src.header_map)
+        expected_columns = [Column(header, header, None) for header in expected_headers]
+        self.assertEqual(expected_columns, csv_src.columns.items)
 
-    def test_headers_map(self):
-        # verify that an exception is raised if we try to create it without mapping
+    def test_columns_from_csv_source(self):
+        # verify that an exception is raised if we don't override Parquet-invalid column names
         with self.assertRaises(csv2parquet.InvalidColumnNames):
             csv_src = csv2parquet.CsvSource(TEST_CSV_MAP)
         # now try again, with a mapping
@@ -63,22 +63,22 @@ class TestCsvSource(unittest.TestCase):
             'Adj. Volume' : 'Adj Volume',
             }
         csv_src = csv2parquet.CsvSource(TEST_CSV_MAP, name_map)
-        expected_header_map = OrderedDict([
-            ('Date', 'Date'),
-            ('Open', 'Open'),
-            ('High', 'High'),
-            ('Low', 'Low'),
-            ('Close', 'Close'),
-            ('Volume', 'Volume'),
-            ('Ex-Dividend', 'Ex-Dividend'),
-            ('Split Ratio', 'Split Ratio'),
-            ('Adj. Open', 'Adj Open'),
-            ('Adj. High', 'Adj High'),
-            ('Adj. Low', 'Adj Low'),
-            ('Adj. Close', 'Adj Close'),
-            ('Adj. Volume', 'Adj Volume'),
-            ])
-        self.assertEqual(expected_header_map, csv_src.header_map)
+        expected_columns = [
+            Column('Date', 'Date', None),
+            Column('Open', 'Open', None),
+            Column('High', 'High', None),
+            Column('Low', 'Low', None),
+            Column('Close', 'Close', None),
+            Column('Volume', 'Volume', None),
+            Column('Ex-Dividend', 'Ex-Dividend', None),
+            Column('Split Ratio', 'Split Ratio', None),
+            Column('Adj. Open', 'Adj Open', None),
+            Column('Adj. High', 'Adj High', None),
+            Column('Adj. Low', 'Adj Low', None),
+            Column('Adj. Close', 'Adj Close', None),
+            Column('Adj. Volume', 'Adj Volume', None),
+            ]
+        self.assertEqual(expected_columns, csv_src.columns.items)
 
 class TestDrillScript(unittest.TestCase):
     def test_build_script(self):
@@ -116,8 +116,8 @@ class TestColumns(unittest.TestCase):
         columns = Columns([], {}, {})
         self.assertEqual([], columns.items)
         
-        columns = csv2parquet.Columns(
-            ["abc", "xyz", "foo", "bar", "baz", ],
+        columns = Columns(
+            ["abc", "xyz", "foo", "bar", "baz"],
             {"foo": "whee", "baz": "magic"},
             {})
         items = [
