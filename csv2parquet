@@ -9,7 +9,6 @@ import string
 import subprocess
 import sys
 import tempfile
-from collections import namedtuple
 
 HELP='''
 csv_input is a CSV file, whose first line defines the column names.
@@ -19,8 +18,12 @@ more Parquet files are written.)
 When used, --column-names must be followed by an even number of
 strings, constituting the key-value pairs mapping CSV to Parquet
 column names:
+  csv2parquet data.csv data.parquet --column-names "CSV Column Name" "Parquet Column Name"
 
-csv2parquet data.csv data.parquet --column-names "CSV Column Name" "Parquet Column Name"
+To provide types for columns, use --type-names:
+  csv2parquet data.csv data.parquet --type-names "CSV Column Name" "INT"
+
+See documentation (README.md in the source repo) for more information.
 '''.strip()
 
 # True iff we are to preserve temporary files.
@@ -68,7 +71,21 @@ class InvalidColumnNames(CsvSourceError):
 
 # classes
 
-Column = namedtuple('Column', ['csv', 'parquet', 'type'])
+class Column:
+    def __init__(self, csv, parquet, type):
+        self.csv = csv
+        self.parquet = parquet
+        self.type = type
+    def __eq__(self, other):
+        return \
+            self.csv == other.csv and \
+            self.parquet == other.parquet and \
+            self.type == other.type
+    def line(self, index):
+        if self.type is None:
+            return 'columns[{}] as `{}`'.format(index, self.parquet)
+        return "CASE when columns[{index}]='{csv_name}' then CAST(NULL AS {type}) else CAST(columns[{index}] as {type}) end as `{parquet_name}`".format(
+            index=index, type=self.type, parquet_name=self.parquet, csv_name=self.csv)
 
 class Columns:
     def __init__(self, csv_columns: list, name_map: dict, type_map: dict):
@@ -80,9 +97,10 @@ class Columns:
         invalid_names = []
         for csv_name in self.csv_columns:
             parquet_name = self.name_map.get(csv_name, csv_name)
+            type_name = self.type_map.get(csv_name, None)
             if not is_valid_parquet_column_name(parquet_name):
                 invalid_names.append(parquet_name)
-            self.items.append(Column(csv_name, parquet_name, None))
+            self.items.append(Column(csv_name, parquet_name, type_name))
         if len(invalid_names) > 0:
             raise InvalidColumnNames(invalid_names)
             
@@ -90,13 +108,14 @@ class Columns:
         return iter(self.items)
         
 class CsvSource:
-    def __init__(self, path: str, name_map: dict = None):
+    def __init__(self, path: str, name_map: dict = None, type_map: dict = None):
         if name_map is None:
             name_map = {}
+        if type_map is None:
+            type_map = {}
         self.path = os.path.realpath(path)
-        self.name_map = name_map
         self.headers = self._init_headers()
-        self.columns = Columns(self.headers, name_map, {})
+        self.columns = Columns(self.headers, name_map, type_map)
     def _init_headers(self):
         with open(self.path, newline='') as handle:
             csv_data = csv.reader(handle)
@@ -229,12 +248,18 @@ def get_args():
     parser.add_argument('--debug', default=False, action='store_true',
                         help='Preserve intermediate files and logs')
     parser.add_argument('--column-names', nargs='*',
-                        help='Map CSV header names to Parquet column names. See documentation')
+                        help='Map CSV header names to Parquet column names')
+    parser.add_argument('--type-names', nargs='*',
+                        help='Map CSV header names to Parquet types')
     args = parser.parse_args()
     try:
         args.column_names = list2dict(args.column_names)
     except ValueError:
         parser.error('--column-names requires an even number of arguments, as key-value pairs')
+    try:
+        args.type_names = list2dict(args.type_names)
+    except ValueError:
+        parser.error('--type-names requires an even number of arguments, as key-value pairs')
     return args
 
 def list2dict(items):
@@ -254,8 +279,7 @@ def render_drill_script(columns: Columns, parquet_output: str, csv_input: str):
 CREATE TABLE dfs.tmp.`{}` AS
 SELECT
 '''.format(parquet_output)
-    column_lines = ['columns[{}] as `{}`'.format(n, column.parquet)
-                    for n, column in enumerate(columns)]
+    column_lines = [column.line(n) for n, column in enumerate(columns)]
     script += ',\n'.join(column_lines) + '\n'
     script += 'FROM dfs.`{}`\n'.format(csv_input)
     script += 'OFFSET 1\n'
@@ -272,7 +296,7 @@ if __name__ == "__main__":
     if os.path.exists(args.parquet_output):
         sys.stderr.write('Output location "{}" already exists. Rename or delete before running again.\n'.format(args.parquet_output))
         sys.exit(1)
-    csv_source = CsvSource(args.csv_input, args.column_names)
+    csv_source = CsvSource(args.csv_input, args.column_names, args.type_names)
     drill = DrillInstallation()
     drill_script = drill.build_script(csv_source, args.parquet_output)
     drill_script.run()

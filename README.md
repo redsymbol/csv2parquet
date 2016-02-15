@@ -35,6 +35,35 @@ example, a header name with a period, like "Min. Investment". In this
 situation, you *must* use `--column-names` to provide a column name
 that Parquet can accept, or edit the source CSV file.)
 
+## Column Types
+
+By default, `csv2parquet` assumes all columns are of type string. You
+can define specific columns to be any Drill data type. You do this
+using the `--type-names` option, whose syntax is similar to
+`--column-names`. On the command line, you write `--type-names`,
+followed by an even number of strings that encode a sequence of
+pairs. In each pair, the first string matches the name of the CSV
+column. (*Not* the Parquet column name, if that is different.) The
+second string is one of the [Drill data
+types](https://drill.apache.org/docs/supported-data-types/), such as
+"INT", "FLOAT", "DATE", and so on. For example:
+
+```
+csv2parquet data.csv data.parquet --type-names "First Column" "INT" "Another Column" "FLOAT"
+```
+
+Note you can pass both `--type-names` and `--column-names` to
+`csv2parquet` at once:
+
+    # On one long line:
+    csv2parquet data.csv data.parquet --column-names "First Column" "Primary Column" "Another Column" "Special Name" --type-names "First Column" "INT" "Another Column" "FLOAT"
+    
+    # Split across lines, for readability:
+    csv2parquet data.csv data.parquet \
+        --column-names "First Column" "Primary Column" "Another Column" "Special Name" \
+        --type-names "First Column" "INT" "Another Column" "FLOAT"
+
+
 ## Troubleshooting
 
 If you encounter a bug, run again with the `--debug` option. and note
@@ -49,7 +78,7 @@ bug report (see "About and Contact", below)
 
 Your system must have:
 
- * [Apache Drill](https://drill.apache.org), version 1.4 or later.
+ * [Apache Drill](https://drill.apache.org), version 1.4 or later. Specifically, `drill-embedded` must be in your path.
  * Python 3 (version 3.5 or later).
 
 There are no other dependencies. You can simply copy the `csv2parquet` script wherever you'd like, and run it.
@@ -63,7 +92,6 @@ comments, pull requests, etc. to support Windows users.
 In terms of priority:
 
  * Adding certain important features, including:
-   - type casting
    - delimiters other than comma
  * Running `csv2parquet` on Windows
  * Porting to work on versions of Python earlier than 3.5

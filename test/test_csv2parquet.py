@@ -87,29 +87,32 @@ class TestDrillScript(unittest.TestCase):
 alter session set `store.format`='parquet';
 CREATE TABLE dfs.tmp.`/path/to/parquet_output/` AS
 SELECT
-columns[0] as `Date`,
+CASE when columns[0]='When' then CAST(NULL AS DATE) else CAST(columns[0] as DATE) end as `Date`,
 columns[1] as `Open`,
 columns[2] as `High`,
 columns[3] as `Low`,
 columns[4] as `Close`,
 columns[5] as `Volume`,
 columns[6] as `Ex-Dividend`,
-columns[7] as `Split Ratio`
+CASE when columns[7]='Split Ratio' then CAST(NULL AS FLOAT) else CAST(columns[7] as FLOAT) end as `Split Ratio`,
+CASE when columns[8]='Adj. Open' then CAST(NULL AS DOUBLE) else CAST(columns[8] as DOUBLE) end as `Adj Open`
 FROM dfs.`/path/to/input.csv`
 OFFSET 1
 '''.strip()
         columns = [
-            Column('When', 'Date', None),
+            Column('When', 'Date', 'DATE'),
             Column('Open', 'Open', None),
             Column('Day High', 'High', None),
             Column('Day Low', 'Low', None),
             Column('Close', 'Close', None),
             Column('Volume', 'Volume', None),
             Column('Ex-Dividend', 'Ex-Dividend', None),
-            Column('Split Ratio', 'Split Ratio', None),
+            Column('Split Ratio', 'Split Ratio', 'FLOAT'),
+            Column('Adj. Open', 'Adj Open', 'DOUBLE'),
             ]
         actual_script = csv2parquet.render_drill_script(columns, '/path/to/parquet_output/', '/path/to/input.csv').strip()
         self.assertEqual(expected_script, actual_script)
+    maxDiff=None
 
 class TestColumns(unittest.TestCase):
     def test_main(self):
