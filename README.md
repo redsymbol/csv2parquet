@@ -15,8 +15,6 @@ Drill](http://tgrall.github.io/blog/2015/08/17/convert-csv-file-to-apache-parque
 `parquet_output` is the Parquet output (i.e., directory in which one or
 more Parquet files are written.)
 
-To see Drill logs and other intermediate files, add the `--debug` option.
-
 ## Column Names
 
 By default, Parquet column names have the same name as the CSV header.
@@ -36,6 +34,16 @@ columns under "Primary Column" and "Special Name", respectively.
 example, a header name with a period, like "Min. Investment". In this
 situation, you *must* use `--column-names` to provide a column name
 that Parquet can accept, or edit the source CSV file.)
+
+## Troubleshooting
+
+If you encounter a bug, run again with the `--debug` option. and note
+the directory name which is printed out at startup. Many files, logs,
+and other info useful for troubleshooting are stored in a temporary
+folder. `--debug` prevents this from being deleted after the program
+completes. See in particular `script`, `script_stderr` and
+`script_stdout` from that folder, and email them to the author with a
+bug report (see "About and Contact", below)
 
 # Installation
 
@@ -57,12 +65,23 @@ In terms of priority:
  * Adding certain important features, including:
    - type casting
    - delimiters other than comma
- * Running `csv2parquet` on Windows.
- * Porting to work on versions of Python earlier than 3.5.
+ * Running `csv2parquet` on Windows
+ * Porting to work on versions of Python earlier than 3.5
 
-# About
+Regarding Python versions: I'd like to make it work on 2.7 eventually
+as well, though I consider this lower priority than developing other
+features. Note that Python 3 safely installs alongside Python 2 with
+no conflict (even the interpreters are named differently), so you can
+[simply install it](https://www.python.org/downloads/) to run
+`csv2parquet` today on any system you control.
+
+# About and Contact
 
 Written by [Aaron Maxwell](http://redsymbol.net). Contact him at amax@redsymbol.net.
 
 Licensed under GPLv3.
 
+For bug reports, please run with the `--debug` option (see
+"Troubleshooting" above), and email the `script`, `script_stderr` and
+`script_stdout` files to the author, along with a description of what
+happened, and a CSV file that will reproduce the error.
