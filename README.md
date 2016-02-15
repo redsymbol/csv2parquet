@@ -7,6 +7,10 @@ essentially automates the process he documents in [Convert a CSV File
 to Apache Parquet With
 Drill](http://tgrall.github.io/blog/2015/08/17/convert-csv-file-to-apache-parquet-dot-dot-dot-with-drill/).
 
+`csv2parquet` is now in **public beta**. Feedback, comments, bug
+reports, and feature requests are all appreciated. See "About and
+Contact" below to reach the author.
+
 # Usage
 
 ```csv2parquet CSV_INPUT PARQUET_OUTPUT [--column-names ...]```
@@ -30,10 +34,11 @@ In this example, two of the CSV columns are named "First Column" and
 "Another Column". The created Parquet file will store data from these
 columns under "Primary Column" and "Special Name", respectively.
 
-(A CSV column name may not be valid as a Parquet column name - for
-example, a header name with a period, like "Min. Investment". In this
-situation, you *must* use `--column-names` to provide a column name
-that Parquet can accept, or edit the source CSV file.)
+(A perfectly good CSV column name may not be valid as a Parquet column
+name - for example, a header name with a period, like
+"Min. Investment". In this situation, you *must* use `--column-names`
+to provide a column name that Parquet can accept, or edit the source
+CSV file.)
 
 ## Column Types
 
@@ -71,8 +76,8 @@ the directory name which is printed out at startup. Many files, logs,
 and other info useful for troubleshooting are stored in a temporary
 folder. `--debug` prevents this from being deleted after the program
 completes. See in particular `script`, `script_stderr` and
-`script_stdout` from that folder, and email them to the author with a
-bug report (see "About and Contact", below)
+`script_stdout` from that folder. To report bugs, see "About and
+Contact" below.
 
 # Installation
 
@@ -91,17 +96,17 @@ comments, pull requests, etc. to support Windows users.
 
 In terms of priority:
 
- * Adding certain important features, including:
-   - delimiters other than comma
+ * Adding certain important features, such as delimiters other than commas
  * Running `csv2parquet` on Windows
  * Porting to work on versions of Python earlier than 3.5
 
 Regarding Python versions: I'd like to make it work on 2.7 eventually
-as well, though I consider this lower priority than developing other
-features. Note that Python 3 safely installs alongside Python 2 with
-no conflict (even the interpreters are named differently), so you can
-[simply install it](https://www.python.org/downloads/) to run
-`csv2parquet` today on any system you control.
+as well, though I consider this lower priority than anything
+else. Note that Python 3 safely installs alongside Python 2 with no
+conflict: even the executables are named differently ("python" for
+2.7, and "python3" for 3.x). So you can [simply install
+it](https://www.python.org/downloads/) to run `csv2parquet` today on
+any system you control.
 
 # About and Contact
 
