@@ -18,8 +18,8 @@ Contact" below to reach the author.
 `csv_input` is a CSV file, whose first line defines the column names.
 `parquet_output` is the Parquet output (i.e., directory in which one
 or more Parquet files are written.) Note that `csv2parquet` is
-currently specifically designed to work with files whose first line
-defines header/column names.
+currently specifically designed to work with CSV files whose first
+line defines header/column names.
 
 ## Customizing Column Names
 
