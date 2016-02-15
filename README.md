@@ -21,7 +21,7 @@ or more Parquet files are written.) Note that `csv2parquet` is
 currently specifically designed to work with files whose first line
 defines header/column names.
 
-## Column Names
+## Customizing Column Names
 
 By default, Parquet column names have the same name as the CSV header.
 You can specify a different name for each output column with the
@@ -46,14 +46,14 @@ CSV file.)
 
 ## Column Types
 
-By default, `csv2parquet` assumes all columns are of type string. You
-can define specific columns to be any Drill data type. You do this
-using the `--types` option, whose syntax is similar to
-`--column-map`. On the command line, you write `--types`,
-followed by an even number of strings that encode a sequence of
-pairs. In each pair, the first string matches the name of the CSV
-column. (*Not* the Parquet column name, if that is different.) The
-second string is one of the [Drill data
+By default, `csv2parquet` assumes all columns are of type string, but
+you can declare specific columns to be any Drill data type. You do
+this using the `--types` option, whose syntax is similar to
+`--column-map`. On the command line, you write `--types`, followed by
+an even number of strings that encode a sequence of pairs. In each
+pair, the first string matches the name of the CSV column. (*Not* the
+Parquet column name, if that is different.) The second string is one
+of the [Drill data
 types](https://drill.apache.org/docs/supported-data-types/), such as
 "INT", "FLOAT", "DATE", and so on. For example:
 
@@ -96,21 +96,21 @@ Currently, `csv2parquet` runs on OS X and Linux. It has not been tested
 on Windows, though Windows support is intended, and I appreciate
 comments, pull requests, etc. to support Windows users.
 
+Regarding Python versions: Note that Python 3 safely installs
+alongside Python 2 with no conflict: even the executables are named
+differently ("python" for 2.7, and "python3" for 3.x). So you can
+[simply install it](https://www.python.org/downloads/) to run
+`csv2parquet` today on any system you control.
+
 # Future Work
 
 In terms of priority:
 
- * Adding certain important features, such as delimiters other than commas
+ * Adding certain important features, including:
+   - delimiters other than commas
+   - CSV files without header lines
  * Running `csv2parquet` on Windows
- * Porting to work on versions of Python earlier than 3.5
-
-Regarding Python versions: I'd like to make it work on 2.7 eventually
-as well, though I consider this lower priority than anything
-else. Note that Python 3 safely installs alongside Python 2 with no
-conflict: even the executables are named differently ("python" for
-2.7, and "python3" for 3.x). So you can [simply install
-it](https://www.python.org/downloads/) to run `csv2parquet` today on
-any system you control.
+ * Porting to work on versions of Python earlier than 3.5. (This may never happen.)
 
 # About and Contact
 
