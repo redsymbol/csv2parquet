@@ -90,10 +90,10 @@ class Column:
         #
         #     CAST(columns[{index}] as {type}) as `{parquet_name}`
         #
-        # But causes the entire conversion to fail, because Drill
-        # attempts to cast the header (e.g., "Price") to the type
-        # (e.g., INT), triggering a fatal error. So instead we must
-        # do:
+        # But if the header line is present, this causes the entire
+        # conversion to fail, because Drill attempts to cast the
+        # header (e.g., "Price") to the type (e.g., INT), triggering a
+        # fatal error. So instead we must do:
         #
         #     CASE when columns[{index}]='{csv_name}' then CAST(NULL AS {type}) else ...
         #
