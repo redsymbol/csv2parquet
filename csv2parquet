@@ -215,7 +215,7 @@ class DrillInstallation:
         # link to reference
         for item in os.scandir(self.reference_base):
             if item.name == 'conf':
-                assert item.is_dir()
+                assert item.is_dir(), os.path.realpath(item)
                 continue
             os.symlink(item.path, os.path.join(self.base, item.name))
         # install config
