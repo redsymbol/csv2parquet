@@ -1,7 +1,7 @@
 # csv2parquet: Create Parquet files from CSV
 
-This simple tool creates Parquet files from CSV input. It requires
-[Apache Drill](https://drill.apache.org) to be installed. As a data
+This simple tool creates Parquet files from CSV input, using a minimal
+installation of [Apache Drill](https://drill.apache.org). As a data
 format, [Parquet](https://parquet.apache.org) offers strong advantages
 over comma-separated values for big data and cloud computing needs;
 `csv2parquet` is designed to let you experience those benefits more
@@ -77,7 +77,6 @@ Note you can pass both `--types` and `--column-map` to
         --column-map "First Column" "Primary Column" "Another Column" "Special Name" \
         --types "First Column" "INT" "Another Column" "FLOAT"
 
-
 ## Troubleshooting
 
 If you encounter a bug, run again with the `--debug` option. and note
@@ -92,10 +91,15 @@ Contact" below.
 
 Your system must have:
 
- * [Apache Drill](https://drill.apache.org), version 1.4 or later. Specifically, `drill-embedded` must be in your path.
  * Python 3 (version 3.5 or later).
+ * A quick-and-easy installation of [Apache Drill](https://drill.apache.org), version 1.4 or 1.5 - see below.
 
 There are no other dependencies. You can simply copy the `csv2parquet` script wherever you'd like, and run it.
+
+If you do not currently have Drill installed, simply
+[download the tarball](https://drill.apache.org/download/), uncompress
+it, and add its `bin` directory in your `$PATH`. No additional setup is
+needed. (`cvs2parquet` just uses the `drill-embedded` executable.)
 
 Currently, `csv2parquet` runs on OS X and Linux. It has not been tested
 on Windows, though Windows support is intended, and I appreciate
