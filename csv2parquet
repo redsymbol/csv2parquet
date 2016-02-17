@@ -66,6 +66,11 @@ class CsvSourceError(Exception):
         super().__init__(message)
         self.message = message
 
+class DrillScriptError(CsvSourceError):
+    def __init__(self, returncode):
+        super().__init__(returncode)
+        self.returncode = returncode
+
 class InvalidColumnNames(CsvSourceError):
     pass
 
@@ -253,7 +258,9 @@ class DrillScript:
         with open(script_stdout, 'w') as stdout, open(script_stderr, 'w') as stderr:
             proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
             proc.wait()
-        assert proc.returncode == 0, proc.returncode
+        if proc.returncode != 0:
+            raise DrillScriptError(proc.returncode)
+
         # publish resulting output parquet file
         os.rename(self.drill.location.full_path('parquet_tmp_output'), self.parquet_output)
 
@@ -322,4 +329,10 @@ if __name__ == "__main__":
     csv_source = CsvSource(args.csv_input, args.column_map, args.types)
     drill = DrillInstallation()
     drill_script = drill.build_script(csv_source, args.parquet_output)
-    drill_script.run()
+    try:
+        drill_script.run()
+    except DrillScriptError as err:
+        sys.stderr.write('''FATAL: Drill script failed with error code {}.  To troubleshoot, run
+with --debug and inspect files script, script_stderr and script_stdout.
+'''.format(err.returncode))
+        sys.exit(2)
