@@ -119,7 +119,6 @@ In terms of priority:
    - delimiters other than commas
    - CSV files without header lines
  * Running `csv2parquet` on Windows
- * Porting to work on versions of Python earlier than 3.5. (This may never happen.)
 
 # About and Contact
 
